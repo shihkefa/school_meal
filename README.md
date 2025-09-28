@@ -1,6 +1,6 @@
 # school_meal
 感謝群友Meow的協助提供json的規則
-讓我可以把校園食材登入系統接入到HA中
+讓我可以把校園食材登錄查詢系統接入到HA中
 安裝步驟如下:
 1. 請先到教育部校園食材登錄網站
    https://fatraceschool.k12ea.gov.tw/frontend/index.html
