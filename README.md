@@ -17,5 +17,10 @@
 
 也可以編輯HA面板顯示在HA控制面板中
 
+   <img src="https://github.com/shihkefa/school_meal/blob/main/HAUI-ezgif.com-video-to-gif-converter.gif?raw=true" width="400">
+
+
+
+
 
    
