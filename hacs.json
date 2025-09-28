@@ -1,0 +1,10 @@
+{
+  "name": "school_meal",
+  "domain": "school_meal",
+  "country": "worldwide",
+  "homeassistant": "2023.1.0",
+  "render_readme": true,
+  "zip_release": false,
+  "filename": "custom_components/school_meal",
+  "source": "https://github.com/shihkefa/school_meal"
+}
