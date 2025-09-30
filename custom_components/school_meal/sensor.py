@@ -145,3 +145,6 @@ class SchoolMealSensor(CoordinatorEntity, SensorEntity):
             "manufacturer": "教育部 校園食材登錄平臺",
             "model": "School Meal API",
         }
+
+
+
