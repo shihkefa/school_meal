@@ -12,50 +12,39 @@ import logging
 from .const import DOMAIN, BASE_URL, MENU_TYPES
 
 _LOGGER = logging.getLogger(__name__)
-
 DISH_URL = "https://fatraceschool.k12ea.gov.tw/dish"
-
 
 async def async_setup_entry(hass, entry, async_add_entities):
     school_id = entry.data["school_id"]
+    selected_menu_types = entry.data.get("menu_types", list(MENU_TYPES.keys()))
 
     async def async_update_data():
-        """抓取供餐與菜單資料"""
         today = dt_util.now().date()
         data = {}
 
         async with aiohttp.ClientSession() as session:
-            for i in range(8):  # 今日+前七天
+            for i in range(8):  # 今日 + 前七天
                 target_date = today - timedelta(days=i)
                 date_str = target_date.strftime("%Y-%m-%d")
+                rel_name = "今日" if i == 0 else f"前{i}天"
 
-                if i == 0:
-                    rel_name = "今日"
-                else:
-                    rel_name = f"前{i}天"
+                for menu_type in selected_menu_types:
+                    state = "無供餐"
+                    meal = {}
+                    dishes = []
 
-                for menu_type in MENU_TYPES:
-                    name = f"{rel_name}{MENU_TYPES[menu_type]}"
-                    meal_url = (
-                        f"{BASE_URL}?SchoolId={school_id}"
-                        f"&period={date_str}&KitchenId=all&MenuType={menu_type}"
-                    )
-
+                    meal_url = f"{BASE_URL}?SchoolId={school_id}&period={date_str}&KitchenId=all&MenuType={menu_type}"
                     try:
                         async with async_timeout.timeout(10):
                             async with session.get(meal_url) as resp:
                                 meal_data = await resp.json()
                     except Exception as e:
                         _LOGGER.error("無法抓取供餐資料: %s", e)
-                        continue
-
-                    state = "無供餐"
-                    meal = {}
-                    dishes = []
+                        meal_data = {}
 
                     if meal_data.get("data"):
-                        state = "有供餐"
                         meal = meal_data["data"][0]
+                        state = "有供餐"
                         batch_id = meal.get("BatchDataId")
 
                         if batch_id:
@@ -76,12 +65,15 @@ async def async_setup_entry(hass, entry, async_add_entities):
                             except Exception as e:
                                 _LOGGER.warning("無法抓取菜單資料: %s", e)
 
-                    data[f"v2_{school_id}_{menu_type}_{date_str}"] = {
-                        "name": name,
+                    unique_id = f"v2_{school_id}_{menu_type}_{i}"
+                    data[unique_id] = {
+                        "name": f"{rel_name}{MENU_TYPES[menu_type]}",
                         "state": state,
                         "meal": meal,
                         "dishes": dishes,
+                        "date": date_str,
                     }
+
         return data
 
     coordinator = DataUpdateCoordinator(
@@ -95,20 +87,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
     await coordinator.async_config_entry_first_refresh()
 
     entities = []
-    today = dt_util.now().date()
     for i in range(8):
-        target_date = today - timedelta(days=i)
-        date_str = target_date.strftime("%Y-%m-%d")
-
-        if i == 0:
-            rel_name = "今日"
-        else:
-            rel_name = f"前{i}天"
-
-        for menu_type in MENU_TYPES:
-            name = f"{rel_name}{MENU_TYPES[menu_type]}"
-            unique_id = f"v2_{school_id}_{menu_type}_{date_str}"
-            entities.append(SchoolMealSensor(coordinator, school_id, unique_id, name))
+        for menu_type in selected_menu_types:
+            unique_id = f"v2_{school_id}_{menu_type}_{i}"
+            rel_name = "今日" if i == 0 else f"前{i}天"
+            entities.append(SchoolMealSensor(coordinator, school_id, unique_id, f"{rel_name}{MENU_TYPES[menu_type]}"))
 
     async_add_entities(entities, True)
 
@@ -125,7 +108,7 @@ class SchoolMealSensor(CoordinatorEntity, SensorEntity):
         data = self.coordinator.data.get(self._attr_unique_id)
         if data:
             return data["state"]
-        return "未知"
+        return "無供餐"
 
     @property
     def extra_state_attributes(self):
@@ -134,8 +117,9 @@ class SchoolMealSensor(CoordinatorEntity, SensorEntity):
             return {
                 "meal": data["meal"],
                 "dishes": data["dishes"],
+                "date": data.get("date"),
             }
-        return {}
+        return {"meal": {}, "dishes": [], "date": None}
 
     @property
     def device_info(self):
@@ -145,6 +129,3 @@ class SchoolMealSensor(CoordinatorEntity, SensorEntity):
             "manufacturer": "教育部 校園食材登錄平臺",
             "model": "School Meal API",
         }
-
-
-
